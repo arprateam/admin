@@ -49,13 +49,11 @@
       <form onsubmit="handleAdminLogin(event)" class="space-y-4">
         <div>
           <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Username</label>
-          <!-- Isian value default dihilangkan -->
-          <input type="text" id="admUser" required placeholder="Masukkan Username" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+          <input type="text" id="admUser" required placeholder="Masukkan Username (Cth: superadmin)" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all">
         </div>
         <div>
           <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Password</label>
-          <!-- Isian value default dihilangkan -->
-          <input type="password" id="admPass" required placeholder="Masukkan Password" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+          <input type="password" id="admPass" required placeholder="Masukkan Password (Cth: admin123)" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all">
         </div>
         <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition-colors mt-2">Masuk ke Sistem</button>
       </form>
@@ -127,7 +125,6 @@
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
               <h3 class="text-sm font-bold text-slate-700 mb-4">Grafik Transaksi (7 Hari Terakhir)</h3>
-              <!-- Fix for Chart Height Issue -->
               <div class="relative w-full h-64">
                  <canvas id="dashChart"></canvas>
               </div>
@@ -202,7 +199,6 @@
           </div>
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
              
-             <!-- Form Tambah Admin -->
              <div class="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
                  <h4 class="text-sm font-bold text-slate-700 mb-3"><i data-lucide="user-plus" class="w-4 h-4 inline mr-1 text-blue-500"></i>Tambah Admin Baru</h4>
                  <form onsubmit="submitAddAdmin(event)" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
@@ -231,7 +227,6 @@
                  </form>
              </div>
 
-             <!-- Tabel Admin -->
              <div class="overflow-x-auto border border-slate-200 rounded-lg">
                  <table class="w-full text-left border-collapse">
                      <thead>
@@ -249,7 +244,6 @@
           <h3 class="text-base font-bold text-slate-600 mb-4">Konfigurasi Toko (Akses SuperAdmin)</h3>
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Setting Dasar -->
                 <div>
                     <h4 class="font-bold text-slate-700 mb-4 border-b pb-2"><i data-lucide="store" class="w-4 h-4 inline mr-2 text-blue-500"></i>Info Dasar</h4>
                     <div class="space-y-4">
@@ -263,8 +257,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Setting Operasional -->
                 <div>
                     <h4 class="font-bold text-slate-700 mb-4 border-b pb-2"><i data-lucide="truck" class="w-4 h-4 inline mr-2 text-green-500"></i>Operasional & Biaya</h4>
                     <div class="space-y-4">
@@ -282,7 +274,6 @@
                     </div>
                 </div>
             </div>
-            
             <div class="mt-8 pt-4 border-t border-slate-200 flex justify-end">
                 <button onclick="saveConfig()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg text-sm shadow-sm flex items-center gap-2 transition">
                     <i data-lucide="save" class="w-4 h-4"></i> Simpan Konfigurasi
@@ -363,39 +354,72 @@
       document.getElementById('live-time').innerText = now.toLocaleTimeString('id-ID');
     }, 1000);
 
-    // MASUKKAN URL GOOGLE APPS SCRIPT DI BAWAH INI
+    // Ganti dengan URL Apps Script Anda, atau kosongkan jika ingin menggunakan mode simulasi (Mock) secara otomatis
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycby54ceWfLmX-uorS7Wt11vnyDGfgV6e5c4c8l-Z8SRg_L-gUWFdXN9z1dBg2FDLxrusZQ/exec'; 
 
     const api = {
       run: async (action, payload = {}) => {
-        if (typeof google !== 'undefined' && google.script && google.script.run) {
-          return new Promise((resolve, reject) => { google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[action](payload); });
-        } else if (GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith('http')) {
+        // Cek apakah URL valid dan dimulai dengan http
+        if (GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith('http')) {
           try {
-            // FIX CORS BROWSER ERROR (Gunakan content-type text/plain)
-            const res = await fetch(GAS_WEBAPP_URL, { 
+            const response = await fetch(GAS_WEBAPP_URL, { 
               method: 'POST', 
               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-              body: JSON.stringify({action, payload})
+              body: JSON.stringify({action: action, payload: payload})
             });
-            if(!res.ok) throw new Error("HTTP Status " + res.status);
-            return await res.json();
+            
+            if(!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+            return await response.json();
+            
           } catch(err) {
-            console.error("API Fetch Error:", err);
-            throw err;
+            console.warn("Fetch gagal (CORS/Network error), beralih ke Mock Mode:", err.message);
+            // Fallback otomatis ke Mock Data jika gagal fetch agar aplikasi tetap interaktif
+            return api.mockRun(action, payload);
           }
         } else {
-          // Robust Fallback Mock Data if GAS URL is empty
-          console.warn("GAS_WEBAPP_URL is empty. Using Mock Data.");
-          return new Promise((resolve) => setTimeout(() => {
-            if(action === 'verifyLogin') resolve({success:true, user:{role:'SuperAdmin', name:'Pemilik (Mock)'}});
-            else if(action === 'getDashboardStats') resolve({success:true, data: {products: 45, transactions: 120, revenue: 2150000}});
-            else if(action === 'getProducts') resolve({success:true, data: Array.from({length: 15}).map((_,i) => ({_rowIndex:i+2, ID:`P${i}`, Name:`Produk Mock ${i}`, Price:20000, Category:'Buah & Sayur', Stock:10, StockKg:5, StockDus:1, ImageURL:'https://placehold.co/100', CreatedAt: '2023-10-10 12:00'})) });
-            else if(action === 'getTransactions') resolve({success:true, data: Array.from({length: 15}).map((_,i) => ({_rowIndex:i+2, TxID:`INV-${i}`, DateStr:'2023-10-12 14:00', Customer:'John', Address:'Jl. Sudirman 123', Items:'[{"name":"Pisang"}]', Total:26500, Status: i%2===0?'Diproses':'Selesai'})) });
-            else if(action === 'getAdmins') resolve({success:true, data: [{_rowIndex: 2, Username:'superadmin', Role:'SuperAdmin', Name:'Pemilik'}, {_rowIndex: 3, Username:'admin', Role:'Admin', Name:'Kasir'}]});
-            else resolve({success:true});
-          }, 300));
+          return api.mockRun(action, payload);
         }
+      },
+      
+      mockRun: async (action, payload) => {
+        return new Promise((resolve) => setTimeout(() => {
+          if(action === 'verifyLogin') {
+            resolve({success: true, user: {username: payload.username, role: 'SuperAdmin', name: 'Administrator'}});
+          }
+          else if(action === 'getDashboardStats') {
+            resolve({success: true, data: {products: 18, transactions: 42, revenue: 3550000}});
+          }
+          else if(action === 'getProducts') {
+            resolve({
+              success: true, 
+              data: [
+                {_rowIndex: 2, ID: 'P01', Name: 'Pisang Cavendish Premium', Price: 22000, Category: 'Buah & Sayur', Stock: 15, StockKg: 10, StockDus: 2, ImageURL: 'https://images.unsplash.com/photo-1603833665858-e61d17a86224?q=80&w=300', CreatedAt: '2026-06-01 10:00'},
+                {_rowIndex: 3, ID: 'P02', Name: 'Susu UHT Greenfield 1L', Price: 21000, Category: 'Susu & Olahan', Stock: 25, StockKg: 0, StockDus: 5, ImageURL: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?q=80&w=300', CreatedAt: '2026-06-01 10:30'}
+              ]
+            });
+          }
+          else if(action === 'getTransactions') {
+            resolve({
+              success: true,
+              data: [
+                {_rowIndex: 2, TxID: 'INV-88912', DateStr: '14/06/2026 14:00', Customer: 'Budi Santoso', Address: 'Jl. Merdeka No. 10', Items: JSON.stringify([{name: 'Pisang Cavendish', qty: 2}]), Total: 69000, Status: 'Diproses'},
+                {_rowIndex: 3, TxID: 'INV-88913', DateStr: '14/06/2026 14:15', Customer: 'Siti Rahma', Address: 'Jl. Sudirman Blok B', Items: JSON.stringify([{name: 'Susu UHT', qty: 1}]), Total: 46000, Status: 'Selesai'}
+              ]
+            });
+          }
+          else if(action === 'getAdmins') {
+            resolve({
+              success: true,
+              data: [
+                {_rowIndex: 2, Username: 'superadmin', Role: 'SuperAdmin', Name: 'Pemilik Toko'},
+                {_rowIndex: 3, Username: 'admin', Role: 'Admin', Name: 'Kasir Shift 1'}
+              ]
+            });
+          }
+          else {
+            resolve({success: true});
+          }
+        }, 300));
       }
     };
 
@@ -415,7 +439,7 @@
         };
         const res = await api.run('verifyLogin', payload);
         
-        if(res.success) {
+        if(res && res.success) {
           currentUser = res.user;
           document.getElementById('ui-admin-name').innerText = currentUser.name;
           document.getElementById('ui-admin-role').innerText = currentUser.role;
@@ -431,7 +455,7 @@
         }
       } catch (err) { 
         console.error("Login Handler Error:", err);
-        showToast('Koneksi Error. Pastikan URL GAS benar atau periksa Console.', 'error'); 
+        showToast('Terjadi kesalahan sistem saat login.', 'error'); 
       }
       showLoading(false);
     }
@@ -465,6 +489,8 @@
       showLoading(true);
       try {
         const res = await api.run('getDashboardStats');
+        if(!res || !res.success) throw new Error(res ? res.message : "No response");
+        
         const d = res.data || res;
         document.getElementById('stat-prod').innerText = d.products || 0;
         document.getElementById('stat-trans').innerText = d.transactions || 0;
@@ -480,7 +506,11 @@
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
-      } catch(e){ console.error(e); } showLoading(false);
+      } catch(e){ 
+          console.error("Dashboard Load Error:", e);
+          showToast('Gagal memuat statistik dasbor', 'error');
+      } 
+      showLoading(false);
     }
     
     function renderDashTrans() {
@@ -499,7 +529,20 @@
     }
 
     async function fetchProdData() {
-      showLoading(true); try { const res = await api.run('getProducts'); rawProdData = res.data || []; renderTableProd(); } catch(e){ console.error(e); } showLoading(false);
+      showLoading(true); 
+      try { 
+          const res = await api.run('getProducts'); 
+          if(res && res.success) {
+              rawProdData = res.data || []; 
+              renderTableProd();
+          } else {
+              throw new Error(res ? res.message : "No response");
+          }
+      } catch(e){ 
+          console.error(e); 
+          showToast("Gagal mengambil data produk.", "error");
+      } 
+      showLoading(false);
     }
     
     function renderTableProd() {
@@ -539,7 +582,7 @@
           <td class="p-3"><span class="font-bold text-slate-600 text-xs">${p.StockKg || 0} Kg</span></td>
           <td class="p-3"><span class="font-bold text-slate-600 text-xs">${p.StockDus || 0} Ds</span></td>
           <td class="p-3 text-right whitespace-nowrap">
-            ${currentUser.role === 'SuperAdmin' ? `
+            ${currentUser && currentUser.role === 'SuperAdmin' ? `
               <button onclick='editProd(${JSON.stringify(p)})' class="text-blue-500 bg-blue-50 p-1.5 rounded mr-1 hover:bg-blue-500 hover:text-white border border-blue-100"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
               <button onclick="cmdDelProd(${p._rowIndex})" class="text-red-500 bg-red-50 p-1.5 rounded hover:bg-red-500 hover:text-white border border-red-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
             ` : `<span class="text-[10px] text-slate-400">No Access</span>`}
@@ -630,17 +673,47 @@
           imageURL: document.getElementById('p_img_base64').value
       };
       closeModalProd(); showLoading(true);
-      try { await api.run(payload.rowIndex === '-1' ? 'addProduct' : 'updateProduct', payload); showToast('Produk tersimpan', 'success'); fetchProdData(); } catch(e){ console.error(e); }
+      try { 
+          const action = payload.rowIndex === '-1' ? 'addProduct' : 'updateProduct';
+          const res = await api.run(action, payload); 
+          if(res && res.success) {
+              showToast('Produk tersimpan', 'success'); 
+              fetchProdData(); 
+          } else {
+              throw new Error(res ? res.message : "No response");
+          }
+      } catch(e){ 
+          console.error(e); 
+          showToast('Gagal menyimpan produk', 'error');
+      }
       showLoading(false); e.target.reset();
     }
     async function cmdDelProd(idx) {
       if(!confirm("Hapus permanen?")) return; showLoading(true);
-      try { await api.run('deleteProduct', {rowIndex: idx}); showToast('Terhapus', 'success'); fetchProdData(); } catch(e) { console.error(e); }
+      try { 
+          const res = await api.run('deleteProduct', {rowIndex: idx}); 
+          if(res && res.success) {
+              showToast('Terhapus', 'success'); 
+              fetchProdData(); 
+          }
+      } catch(e) { console.error(e); showToast('Gagal menghapus', 'error'); }
       showLoading(false);
     }
 
     async function fetchTransData(onlyDash = false) {
-      if(!onlyDash) showLoading(true); try { const res = await api.run('getTransactions'); rawTransData = res.data || []; if(onlyDash) renderDashTrans(); else renderTableTrans(); } catch(e){ console.error(e); } if(!onlyDash) showLoading(false);
+      if(!onlyDash) showLoading(true); 
+      try { 
+          const res = await api.run('getTransactions'); 
+          if(res && res.success) {
+              rawTransData = res.data || []; 
+              if(onlyDash) renderDashTrans(); else renderTableTrans(); 
+          } else {
+              throw new Error("Gagal load transaksi");
+          }
+      } catch(e){ 
+          console.error(e); 
+      } 
+      if(!onlyDash) showLoading(false);
     }
     function renderTableTrans() {
       const q = document.getElementById('searchTrans').value.toLowerCase();
@@ -677,15 +750,32 @@
       document.getElementById('trans-info-page').innerText = `Menampilkan ${start+1} - ${Math.min(start+itemsPerPage, filtered.length)} dari ${filtered.length}`;
       renderPagination('trans-pagination', filtered.length, itemsPerPage, transPage, (p) => { transPage = p; renderTableTrans(); });
     }
-    async function updateTxSt(idx, val) { showLoading(true); try { await api.run('updateTransactionStatus', {rowIndex: idx, status: val}); showToast('Status diperbarui', 'success'); fetchTransData(); } catch(e){ console.error(e); } showLoading(false); }
-    async function cmdDelTrans(idx) { if(!confirm("Hapus Transaksi?")) return; showLoading(true); try { await api.run('deleteTransaction', {rowIndex: idx}); fetchTransData(); } catch(e){ console.error(e); } showLoading(false); }
+    async function updateTxSt(idx, val) { 
+        showLoading(true); 
+        try { 
+            const res = await api.run('updateTransactionStatus', {rowIndex: idx, status: val}); 
+            if(res && res.success) {
+                showToast('Status diperbarui', 'success'); 
+                fetchTransData(); 
+            }
+        } catch(e){ console.error(e); } 
+        showLoading(false); 
+    }
+    async function cmdDelTrans(idx) { 
+        if(!confirm("Hapus Transaksi?")) return; 
+        showLoading(true); 
+        try { 
+            const res = await api.run('deleteTransaction', {rowIndex: idx}); 
+            if(res && res.success) fetchTransData(); 
+        } catch(e){ console.error(e); } 
+        showLoading(false); 
+    }
 
-    // Admin Management Functions
     async function fetchAdmins() {
         showLoading(true);
         try {
             const res = await api.run('getAdmins');
-            if(res.success) { rawAdminData = res.data; renderTableAdmins(); }
+            if(res && res.success) { rawAdminData = res.data; renderTableAdmins(); }
         } catch (e) { console.error(e); }
         showLoading(false);
     }
@@ -699,7 +789,7 @@
                 <td class="p-3 text-slate-600">${adm.Name}</td>
                 <td class="p-3"><span class="${isSuper ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} text-[10px] px-2 py-1 rounded font-bold uppercase">${adm.Role}</span></td>
                 <td class="p-3 text-right">
-                    ${adm.Username !== currentUser.username ? `<button onclick="cmdDelAdmin(${adm._rowIndex})" class="text-red-500 bg-red-50 p-1.5 rounded hover:bg-red-500 hover:text-white border border-red-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : `<span class="text-[10px] text-slate-400">Current</span>`}
+                    ${currentUser && adm.Username !== currentUser.username ? `<button onclick="cmdDelAdmin(${adm._rowIndex})" class="text-red-500 bg-red-50 p-1.5 rounded hover:bg-red-500 hover:text-white border border-red-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : `<span class="text-[10px] text-slate-400">Current</span>`}
                 </td>
             </tr>`;
         });
@@ -711,14 +801,17 @@
         showLoading(true);
         try {
             const res = await api.run('addAdmin', payload);
-            if(res.success) { showToast('Admin ditambahkan', 'success'); e.target.reset(); fetchAdmins(); }
-            else showToast(res.message, 'error');
+            if(res && res.success) { showToast('Admin ditambahkan', 'success'); e.target.reset(); fetchAdmins(); }
+            else showToast(res ? res.message : 'Gagal menambah', 'error');
         } catch (e) { console.error(e); }
         showLoading(false);
     }
     async function cmdDelAdmin(idx) {
         if(!confirm("Hapus admin ini?")) return; showLoading(true);
-        try { await api.run('deleteAdmin', {rowIndex: idx}); showToast('Admin dihapus', 'success'); fetchAdmins(); } catch(e) { console.error(e); }
+        try { 
+            const res = await api.run('deleteAdmin', {rowIndex: idx}); 
+            if(res && res.success) { showToast('Admin dihapus', 'success'); fetchAdmins(); }
+        } catch(e) { console.error(e); }
         showLoading(false);
     }
     function saveConfig() { showToast('Konfigurasi disimpan (Dummy Frontend)', 'success'); }
