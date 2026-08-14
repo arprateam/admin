@@ -40,7 +40,6 @@
     </div>
   </div>
 
-  <!-- LOGIN PANEL -->
   <div id="admin-login" class="w-full h-full flex items-center justify-center p-6 bg-slate-100 absolute inset-0 z-[100]">
     <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm border-t-4 border-blue-500">
       <div class="flex justify-center mb-6"><div class="w-14 h-14 bg-slate-900 rounded-xl flex items-center justify-center shadow-md"><i data-lucide="shield-check" class="w-7 h-7 text-white"></i></div></div>
@@ -354,14 +353,14 @@
       document.getElementById('live-time').innerText = now.toLocaleTimeString('id-ID');
     }, 1000);
 
-    // Ganti dengan URL Apps Script Anda, atau kosongkan jika ingin menggunakan mode simulasi (Mock) secara otomatis
-    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwYQqiaLIVZaWVkRADlQyLPeRELyi3tGs3iRRcGaQX_Woi5PSHxLdcG1b5ekdV3TRyFqQ/exec'; 
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxM5xy3OdM2JYnCDnGmrzaIIEVt9mD73SQYvozZ589Y-6UGCBz1_WAUKZITjqGuhOhT/exec'; 
 
     const api = {
       run: async (action, payload = {}) => {
-        // Cek apakah URL valid dan dimulai dengan http
-        if (GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith('http')) {
-          try {
+        try {
+            if (!GAS_WEBAPP_URL || !GAS_WEBAPP_URL.startsWith('http')) {
+                throw new Error("URL Kosong atau tidak valid");
+            }
             const response = await fetch(GAS_WEBAPP_URL, { 
               method: 'POST', 
               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -371,13 +370,9 @@
             if(!response.ok) throw new Error(`HTTP Error: ${response.status}`);
             return await response.json();
             
-          } catch(err) {
+        } catch(err) {
             console.warn("Fetch gagal (CORS/Network error), beralih ke Mock Mode:", err.message);
-            // Fallback otomatis ke Mock Data jika gagal fetch agar aplikasi tetap interaktif
             return api.mockRun(action, payload);
-          }
-        } else {
-          return api.mockRun(action, payload);
         }
       },
       
@@ -565,6 +560,10 @@
         if(p.ImageURL && p.ImageURL !== 'Sayur Segar' && p.ImageURL !== 'Buah Segar' && p.ImageURL !== 'Buah & Sayur') {
              imgTag = `<img src="${p.ImageURL}" class="w-8 h-8 rounded object-cover border border-slate-200" onerror="this.style.display='none'">`;
         }
+        
+        // Hindari HTML Injection saat menyimpan object ke atribut onclick (Menyimpan data sebagai base64 URL safe)
+        const safeData = btoa(unescape(encodeURIComponent(JSON.stringify(p))));
+        
         tb.innerHTML += `<tr>
           <td class="p-3 text-center text-xs font-bold text-slate-400">${globalIndex}</td>
           <td class="p-3 text-[11px] text-slate-500 font-bold">${p.CreatedAt || '-'}</td>
@@ -583,7 +582,7 @@
           <td class="p-3"><span class="font-bold text-slate-600 text-xs">${p.StockDus || 0} Ds</span></td>
           <td class="p-3 text-right whitespace-nowrap">
             ${currentUser && currentUser.role === 'SuperAdmin' ? `
-              <button onclick='editProd(${JSON.stringify(p)})' class="text-blue-500 bg-blue-50 p-1.5 rounded mr-1 hover:bg-blue-500 hover:text-white border border-blue-100"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
+              <button onclick="editProd('${safeData}')" class="text-blue-500 bg-blue-50 p-1.5 rounded mr-1 hover:bg-blue-500 hover:text-white border border-blue-100"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
               <button onclick="cmdDelProd(${p._rowIndex})" class="text-red-500 bg-red-50 p-1.5 rounded hover:bg-red-500 hover:text-white border border-red-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
             ` : `<span class="text-[10px] text-slate-400">No Access</span>`}
           </td>
@@ -633,13 +632,15 @@
         document.getElementById('p_img_placeholder').classList.remove('hidden');
         lucide.createIcons(); 
     }
+    
     function closeModalProd() { 
         document.getElementById('modalAddProd').classList.add('opacity-0'); 
         document.getElementById('modalAddProdContent').classList.add('scale-95'); 
         setTimeout(()=> document.getElementById('modalAddProd').classList.add('hidden'), 200); 
     }
     
-    function editProd(p) {
+    function editProd(encodedData) {
+      const p = JSON.parse(decodeURIComponent(escape(atob(encodedData))));
       openModalProd();
       document.getElementById('modalProdTitle').innerHTML = '<i data-lucide="edit" class="w-5 h-5 text-blue-600"></i> Edit Produk'; lucide.createIcons();
       document.getElementById('p_index').value = p._rowIndex;
@@ -660,6 +661,7 @@
           document.getElementById('p_img_placeholder').classList.add('hidden');
       }
     }
+    
     async function submitAddProd(e) {
       e.preventDefault();
       const payload = { 
@@ -688,6 +690,7 @@
       }
       showLoading(false); e.target.reset();
     }
+    
     async function cmdDelProd(idx) {
       if(!confirm("Hapus permanen?")) return; showLoading(true);
       try { 
@@ -715,6 +718,7 @@
       } 
       if(!onlyDash) showLoading(false);
     }
+    
     function renderTableTrans() {
       const q = document.getElementById('searchTrans').value.toLowerCase();
       let filtered = rawTransData.filter(t => t.TxID.toLowerCase().includes(q) || String(t.Customer).toLowerCase().includes(q));
@@ -750,6 +754,7 @@
       document.getElementById('trans-info-page').innerText = `Menampilkan ${start+1} - ${Math.min(start+itemsPerPage, filtered.length)} dari ${filtered.length}`;
       renderPagination('trans-pagination', filtered.length, itemsPerPage, transPage, (p) => { transPage = p; renderTableTrans(); });
     }
+    
     async function updateTxSt(idx, val) { 
         showLoading(true); 
         try { 
@@ -761,6 +766,7 @@
         } catch(e){ console.error(e); } 
         showLoading(false); 
     }
+    
     async function cmdDelTrans(idx) { 
         if(!confirm("Hapus Transaksi?")) return; 
         showLoading(true); 
@@ -779,6 +785,7 @@
         } catch (e) { console.error(e); }
         showLoading(false);
     }
+    
     function renderTableAdmins() {
         const tb = document.getElementById('adminListBody');
         tb.innerHTML = '';
@@ -795,6 +802,7 @@
         });
         lucide.createIcons();
     }
+    
     async function submitAddAdmin(e) {
         e.preventDefault();
         const payload = { username: document.getElementById('newAdmUser').value, password: document.getElementById('newAdmPass').value, name: document.getElementById('newAdmName').value, role: document.getElementById('newAdmRole').value };
@@ -806,6 +814,7 @@
         } catch (e) { console.error(e); }
         showLoading(false);
     }
+    
     async function cmdDelAdmin(idx) {
         if(!confirm("Hapus admin ini?")) return; showLoading(true);
         try { 
@@ -814,6 +823,7 @@
         } catch(e) { console.error(e); }
         showLoading(false);
     }
+    
     function saveConfig() { showToast('Konfigurasi disimpan (Dummy Frontend)', 'success'); }
 
     function renderPagination(containerId, totalItems, perPage, currentPage, callback) {
