@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arpra Admin Portal</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { arpra: { main: '#0F172A', light: '#1E293B', accent: '#3B82F6' } } } } }
+  </script>
+  <style>
+    body { background-color: #F8FAFC; }
+    .view-section { display: none; }
+    .view-section.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="h-screen w-full flex text-gray-800 antialiased overflow-hidden font-sans">
+
+  <div id="toast" class="fixed top-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-lg text-sm font-semibold shadow-xl z-[9999] transition-all duration-300 opacity-0 translate-x-10 pointer-events-none flex items-center gap-2">
+    <i data-lucide="info" id="toastIcon" class="w-4 h-4 text-blue-400"></i><span id="toastMsg">Notifikasi</span>
+  </div>
+
+  <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9998] flex flex-col items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center">
+      <i data-lucide="loader-2" class="w-10 h-10 text-blue-500 animate-spin mb-3"></i>
+      <p class="font-bold text-gray-700">Memproses Data...</p>
+    </div>
+  </div>
+
+  <!-- LOGIN PANEL -->
+  <div id="admin-login" class="w-full h-full flex items-center justify-center p-6 bg-slate-100 absolute inset-0 z-[100]">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm border-t-4 border-blue-500">
+      <div class="flex justify-center mb-6"><div class="w-14 h-14 bg-slate-900 rounded-xl flex items-center justify-center shadow-md"><i data-lucide="shield-check" class="w-7 h-7 text-white"></i></div></div>
+      <h2 class="text-2xl font-black text-center mb-1 text-slate-900 tracking-tight">Portal Admin</h2>
+      <p class="text-center text-sm text-slate-500 mb-8 font-medium">Akses sistem manajemen toko & operasional</p>
+      <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Username</label>
+          <!-- Isian value default dihilangkan -->
+          <input type="text" id="admUser" required placeholder="Masukkan Username" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Password</label>
+          <!-- Isian value default dihilangkan -->
+          <input type="password" id="admPass" required placeholder="Masukkan Password" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+        </div>
+        <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md hover:bg-blue-700 transition-colors mt-2">Masuk ke Sistem</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="admin-layout" class="w-full h-full hidden flex-col md:flex-row relative">
+    <aside class="w-full md:w-64 bg-slate-900 text-white flex flex-col shrink-0 md:h-full border-r border-slate-800 z-10">
+      <div class="h-16 flex items-center px-6 border-b border-slate-800 shrink-0">
+        <h1 class="font-black text-xl tracking-wider flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500"></div> ARPRA</h1>
+      </div>
+      <div class="p-5 border-b border-slate-800 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold text-sm border border-slate-600">A</div>
+          <div><p id="ui-admin-name" class="text-sm font-bold leading-tight">Admin</p><p id="ui-admin-role" class="text-[11px] text-blue-400 font-semibold mt-0.5">Role</p></div>
+        </div>
+      </div>
+
+      <nav class="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
+        <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-2">Menu Utama</p>
+        <button onclick="navAdmin('dash')" id="nav-adm-dash" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-600 text-white font-medium transition-colors"><i data-lucide="layout-dashboard" class="w-5 h-5 opacity-80"></i> Dasbor Analitik</button>
+        <button onclick="navAdmin('prod')" id="nav-adm-prod" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800 font-medium transition-colors"><i data-lucide="package" class="w-5 h-5 opacity-80"></i> Katalog Produk</button>
+        <button onclick="navAdmin('trans')" id="nav-adm-trans" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800 font-medium transition-colors"><i data-lucide="receipt" class="w-5 h-5 opacity-80"></i> Pesanan Klien</button>
+        
+        <div id="menu-superadmin" class="hidden">
+          <p class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-6">Sistem</p>
+          <button onclick="navAdmin('admin')" id="nav-adm-admin" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800 font-medium transition-colors"><i data-lucide="users" class="w-5 h-5 opacity-80"></i> Kelola Admin</button>
+          <button onclick="navAdmin('config')" id="nav-adm-config" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-slate-800 font-medium transition-colors"><i data-lucide="settings" class="w-5 h-5 opacity-80"></i> Konfigurasi Toko</button>
+        </div>
+      </nav>
+      <div class="p-4 border-t border-slate-800 shrink-0">
+        <button onclick="logoutAdmin()" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:text-red-400 transition-colors font-bold text-sm"><i data-lucide="log-out" class="w-4 h-4"></i> Keluar</button>
+      </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col bg-slate-50 h-full overflow-hidden relative">
+      <header class="h-16 bg-white border-b border-slate-200 px-6 flex justify-between items-center shrink-0 shadow-sm z-10">
+        <h2 id="page-title" class="text-lg font-black text-slate-800">Dasbor Analitik</h2>
+        <div class="flex items-center gap-4">
+          <div class="text-right hidden sm:block">
+            <p id="live-date" class="text-xs font-bold text-slate-500 uppercase tracking-wider"></p>
+            <p id="live-time" class="text-sm font-black text-slate-800"></p>
+          </div>
+          <button onclick="refreshCurrentPage()" class="text-slate-500 hover:text-blue-600 bg-slate-100 p-2 rounded-lg transition-colors border border-slate-200"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button>
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-y-auto custom-scrollbar p-6" id="admin-content">
+        
+        <div id="adm-view-dash" class="view-section active max-w-6xl mx-auto">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
+              <div class="absolute right-0 top-0 w-1 h-full bg-blue-500"></div>
+              <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Total Produk</p>
+              <p id="stat-prod" class="text-3xl font-black text-slate-800">-</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
+              <div class="absolute right-0 top-0 w-1 h-full bg-indigo-500"></div>
+              <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Trans. Masuk</p>
+              <p id="stat-trans" class="text-3xl font-black text-slate-800">-</p>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
+              <div class="absolute right-0 top-0 w-1 h-full bg-green-500"></div>
+              <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Pendapatan Bersih</p>
+              <p id="stat-rev" class="text-2xl font-black text-green-600 mt-1">Rp -</p>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+              <h3 class="text-sm font-bold text-slate-700 mb-4">Grafik Transaksi (7 Hari Terakhir)</h3>
+              <!-- Fix for Chart Height Issue -->
+              <div class="relative w-full h-64">
+                 <canvas id="dashChart"></canvas>
+              </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-bold text-slate-700">Riwayat Transaksi Terbaru</h3>
+                <div class="flex gap-1" id="dash-pagination"></div>
+              </div>
+              <div class="flex-1 overflow-y-auto" id="dash-recent-trans"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="adm-view-prod" class="view-section max-w-6xl mx-auto">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <div class="relative w-full md:w-64">
+              <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+              <input type="text" id="searchProd" oninput="renderTableProd()" placeholder="Cari Produk..." class="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="flex gap-2 w-full md:w-auto">
+              <button onclick="exportExcel('Products')" class="bg-green-600 text-white px-3 py-2 rounded-lg font-bold text-xs shadow-sm flex items-center gap-1 hover:bg-green-700"><i data-lucide="sheet" class="w-4 h-4"></i> Excel</button>
+              <button onclick="exportPDF('Products')" class="bg-red-600 text-white px-3 py-2 rounded-lg font-bold text-xs shadow-sm flex items-center gap-1 hover:bg-red-700"><i data-lucide="file-text" class="w-4 h-4"></i> PDF</button>
+              <button onclick="openModalProd()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm flex items-center gap-1 hover:bg-blue-700"><i data-lucide="plus" class="w-4 h-4"></i> Tambah</button>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden custom-scrollbar overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[900px]" id="table-products">
+              <thead><tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <th class="p-3 w-16 text-center">No</th><th class="p-3">Info / Waktu</th><th class="p-3 w-1/4">Nama & Kategori</th><th class="p-3">Harga</th><th class="p-3">Stok Pcs</th><th class="p-3">Stok Kg</th><th class="p-3">Stok Dus</th><th class="p-3 text-right">Aksi</th>
+              </tr></thead>
+              <tbody id="adm-prod-body" class="divide-y divide-slate-100 text-sm font-medium"></tbody>
+            </table>
+          </div>
+          <div class="flex justify-between items-center mt-4">
+             <span class="text-xs font-bold text-slate-500" id="prod-info-page">Menampilkan 1-10</span>
+             <div class="flex gap-1" id="prod-pagination"></div>
+          </div>
+        </div>
+
+        <div id="adm-view-trans" class="view-section max-w-6xl mx-auto">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <div class="relative w-full md:w-64">
+              <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+              <input type="text" id="searchTrans" oninput="renderTableTrans()" placeholder="Cari ID / Pelanggan..." class="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div class="flex gap-2">
+              <button onclick="exportExcel('Transactions')" class="bg-green-600 text-white px-3 py-2 rounded-lg font-bold text-xs shadow-sm flex items-center gap-1 hover:bg-green-700"><i data-lucide="sheet" class="w-4 h-4"></i> Excel</button>
+              <button onclick="exportPDF('Transactions')" class="bg-red-600 text-white px-3 py-2 rounded-lg font-bold text-xs shadow-sm flex items-center gap-1 hover:bg-red-700"><i data-lucide="file-text" class="w-4 h-4"></i> PDF</button>
+            </div>
+          </div>
+
+           <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden custom-scrollbar overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[1000px]" id="table-transactions">
+              <thead><tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <th class="p-3">Waktu Pesanan</th><th class="p-3">ID Transaksi</th><th class="p-3">Pelanggan & Rincian</th><th class="p-3 w-48">Alamat Pengiriman</th><th class="p-3">Total (Rp)</th><th class="p-3 w-40">Status Progress</th><th class="p-3 text-right">Aksi</th>
+              </tr></thead>
+              <tbody id="adm-trans-body" class="divide-y divide-slate-100 text-sm font-medium"></tbody>
+            </table>
+          </div>
+          <div class="flex justify-between items-center mt-4">
+             <span class="text-xs font-bold text-slate-500" id="trans-info-page">Menampilkan 1-10</span>
+             <div class="flex gap-1" id="trans-pagination"></div>
+          </div>
+        </div>
+
+        <div id="adm-view-admin" class="view-section max-w-4xl mx-auto">
+          <div class="flex justify-between items-center mb-4">
+             <h3 class="text-base font-bold text-slate-600">Kelola Admin (Akses SuperAdmin)</h3>
+             <button onclick="fetchAdmins()" class="text-xs bg-slate-200 hover:bg-slate-300 px-3 py-1.5 rounded font-bold transition"><i data-lucide="refresh-cw" class="w-3 h-3 inline mr-1"></i> Refresh</button>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+             
+             <!-- Form Tambah Admin -->
+             <div class="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                 <h4 class="text-sm font-bold text-slate-700 mb-3"><i data-lucide="user-plus" class="w-4 h-4 inline mr-1 text-blue-500"></i>Tambah Admin Baru</h4>
+                 <form onsubmit="submitAddAdmin(event)" class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                     <div class="md:col-span-1">
+                         <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Username</label>
+                         <input type="text" id="newAdmUser" required class="w-full border border-slate-200 rounded p-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                     </div>
+                     <div class="md:col-span-1">
+                         <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Password</label>
+                         <input type="text" id="newAdmPass" required class="w-full border border-slate-200 rounded p-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                     </div>
+                     <div class="md:col-span-1">
+                         <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nama</label>
+                         <input type="text" id="newAdmName" required class="w-full border border-slate-200 rounded p-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                     </div>
+                     <div class="md:col-span-1">
+                         <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Role</label>
+                         <select id="newAdmRole" class="w-full border border-slate-200 rounded p-2 text-sm bg-white">
+                             <option value="Admin">Admin</option>
+                             <option value="SuperAdmin">SuperAdmin</option>
+                         </select>
+                     </div>
+                     <div class="md:col-span-1">
+                         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-sm transition">Simpan</button>
+                     </div>
+                 </form>
+             </div>
+
+             <!-- Tabel Admin -->
+             <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                 <table class="w-full text-left border-collapse">
+                     <thead>
+                         <tr class="bg-slate-100 text-xs text-slate-600 uppercase border-b border-slate-200">
+                             <th class="p-3">Username</th><th class="p-3">Nama</th><th class="p-3">Role</th><th class="p-3 text-right">Aksi</th>
+                         </tr>
+                     </thead>
+                     <tbody id="adminListBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                 </table>
+             </div>
+          </div>
+        </div>
+
+        <div id="adm-view-config" class="view-section max-w-4xl mx-auto">
+          <h3 class="text-base font-bold text-slate-600 mb-4">Konfigurasi Toko (Akses SuperAdmin)</h3>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Setting Dasar -->
+                <div>
+                    <h4 class="font-bold text-slate-700 mb-4 border-b pb-2"><i data-lucide="store" class="w-4 h-4 inline mr-2 text-blue-500"></i>Info Dasar</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Nama Toko</label>
+                            <input type="text" id="confStoreName" value="Arpra - Belanja Cepat" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Nomor WhatsApp CS</label>
+                            <input type="text" id="confStoreWA" value="6285811888911" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Setting Operasional -->
+                <div>
+                    <h4 class="font-bold text-slate-700 mb-4 border-b pb-2"><i data-lucide="truck" class="w-4 h-4 inline mr-2 text-green-500"></i>Operasional & Biaya</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Ongkos Kirim Default (Rp)</label>
+                            <input type="number" id="confShipping" value="25000" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Status Toko</label>
+                            <select id="confStatus" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                <option value="Buka">Buka (Menerima Pesanan)</option>
+                                <option value="Tutup Sementara">Tutup Sementara</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 pt-4 border-t border-slate-200 flex justify-end">
+                <button onclick="saveConfig()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg text-sm shadow-sm flex items-center gap-2 transition">
+                    <i data-lucide="save" class="w-4 h-4"></i> Simpan Konfigurasi
+                </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <div id="modalAddProd" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center hidden opacity-0 transition-opacity duration-200 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg transform scale-95 transition-transform" id="modalAddProdContent">
+      <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+        <h3 class="font-bold text-slate-800 flex items-center gap-2" id="modalProdTitle"><i data-lucide="package-plus" class="w-5 h-5 text-blue-600"></i> Entri/Edit Produk</h3>
+        <button type="button" onclick="closeModalProd()" class="text-slate-400 hover:bg-slate-200 p-1 rounded-md transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="submitAddProd(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+        <input type="hidden" id="p_index" value="-1">
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nama Produk</label>
+          <input type="text" id="p_name" required class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div class="flex gap-3">
+          <div class="flex-1">
+            <label class="block text-xs font-bold text-slate-600 mb-1">Kategori</label>
+            <select id="p_cat" required class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+              <option value="Buah & Sayur">Buah & Sayur</option><option value="Daging Beku">Daging Beku</option><option value="Susu & Olahan">Susu & Olahan</option><option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs font-bold text-slate-600 mb-1">Harga (Rp)</label>
+            <input type="number" id="p_price" required placeholder="0" class="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+          <div><label class="block text-[10px] font-bold text-blue-700 uppercase mb-1">Stok Pcs</label><input type="number" id="p_stock" value="0" class="w-full border border-blue-200 rounded p-2 text-sm"></div>
+          <div><label class="block text-[10px] font-bold text-blue-700 uppercase mb-1">Stok Kg</label><input type="number" step="0.1" id="p_stockKg" value="0" class="w-full border border-blue-200 rounded p-2 text-sm"></div>
+          <div><label class="block text-[10px] font-bold text-blue-700 uppercase mb-1">Stok Dus</label><input type="number" id="p_stockDus" value="0" class="w-full border border-blue-200 rounded p-2 text-sm"></div>
+        </div>
+        
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Foto Produk (File Uploader)</label>
+          <div class="flex items-center gap-3">
+              <input type="file" id="p_image_file" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" onchange="previewProductImage(event)">
+          </div>
+          <input type="hidden" id="p_img_base64" value=""> 
+          <div class="mt-2 h-24 w-24 border border-dashed border-slate-300 rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center">
+              <img id="p_img_preview" src="" class="hidden w-full h-full object-cover">
+              <span id="p_img_placeholder" class="text-xs text-slate-400">Preview</span>
+          </div>
+        </div>
+        
+        <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold mt-2 shadow-sm hover:bg-blue-700 transition-colors">Simpan Katalog</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+    const formatRp = (num) => "Rp " + parseInt(num || 0).toLocaleString('id-ID');
+    
+    function showToast(msg, type='info') {
+      const t = document.getElementById('toast'), icon = document.getElementById('toastIcon');
+      document.getElementById('toastMsg').innerText = msg;
+      t.classList.remove('opacity-0', 'translate-x-10');
+      if(type==='success') { icon.setAttribute('data-lucide', 'check-circle'); icon.className='w-4 h-4 text-green-400'; }
+      else if(type==='error') { icon.setAttribute('data-lucide', 'alert-circle'); icon.className='w-4 h-4 text-red-400'; }
+      else { icon.setAttribute('data-lucide', 'info'); icon.className='w-4 h-4 text-blue-400'; }
+      lucide.createIcons(); setTimeout(() => t.classList.add('opacity-0', 'translate-x-10'), 2500);
+    }
+    function showLoading(show) { document.getElementById('loadingOverlay').classList[show ? 'remove' : 'add']('hidden'); }
+
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('live-date').innerText = now.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'short', year:'numeric'});
+      document.getElementById('live-time').innerText = now.toLocaleTimeString('id-ID');
+    }, 1000);
+
+    // MASUKKAN URL GOOGLE APPS SCRIPT DI BAWAH INI
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycby54ceWfLmX-uorS7Wt11vnyDGfgV6e5c4c8l-Z8SRg_L-gUWFdXN9z1dBg2FDLxrusZQ/exec'; 
+
+    const api = {
+      run: async (action, payload = {}) => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          return new Promise((resolve, reject) => { google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[action](payload); });
+        } else if (GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith('http')) {
+          try {
+            // FIX CORS BROWSER ERROR (Gunakan content-type text/plain)
+            const res = await fetch(GAS_WEBAPP_URL, { 
+              method: 'POST', 
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({action, payload})
+            });
+            if(!res.ok) throw new Error("HTTP Status " + res.status);
+            return await res.json();
+          } catch(err) {
+            console.error("API Fetch Error:", err);
+            throw err;
+          }
+        } else {
+          // Robust Fallback Mock Data if GAS URL is empty
+          console.warn("GAS_WEBAPP_URL is empty. Using Mock Data.");
+          return new Promise((resolve) => setTimeout(() => {
+            if(action === 'verifyLogin') resolve({success:true, user:{role:'SuperAdmin', name:'Pemilik (Mock)'}});
+            else if(action === 'getDashboardStats') resolve({success:true, data: {products: 45, transactions: 120, revenue: 2150000}});
+            else if(action === 'getProducts') resolve({success:true, data: Array.from({length: 15}).map((_,i) => ({_rowIndex:i+2, ID:`P${i}`, Name:`Produk Mock ${i}`, Price:20000, Category:'Buah & Sayur', Stock:10, StockKg:5, StockDus:1, ImageURL:'https://placehold.co/100', CreatedAt: '2023-10-10 12:00'})) });
+            else if(action === 'getTransactions') resolve({success:true, data: Array.from({length: 15}).map((_,i) => ({_rowIndex:i+2, TxID:`INV-${i}`, DateStr:'2023-10-12 14:00', Customer:'John', Address:'Jl. Sudirman 123', Items:'[{"name":"Pisang"}]', Total:26500, Status: i%2===0?'Diproses':'Selesai'})) });
+            else if(action === 'getAdmins') resolve({success:true, data: [{_rowIndex: 2, Username:'superadmin', Role:'SuperAdmin', Name:'Pemilik'}, {_rowIndex: 3, Username:'admin', Role:'Admin', Name:'Kasir'}]});
+            else resolve({success:true});
+          }, 300));
+        }
+      }
+    };
+
+    let currentUser = null, currentTab = 'dash';
+    let rawProdData = [], rawTransData = [], rawAdminData = [];
+    let prodPage = 1, transPage = 1, dashPage = 1;
+    const itemsPerPage = 10;
+    let dashChartInstance = null;
+
+    async function handleAdminLogin(e) {
+      e.preventDefault(); 
+      showLoading(true);
+      try {
+        const payload = {
+          username: document.getElementById('admUser').value, 
+          password: document.getElementById('admPass').value
+        };
+        const res = await api.run('verifyLogin', payload);
+        
+        if(res.success) {
+          currentUser = res.user;
+          document.getElementById('ui-admin-name').innerText = currentUser.name;
+          document.getElementById('ui-admin-role').innerText = currentUser.role;
+          
+          if(currentUser.role === 'SuperAdmin') document.getElementById('menu-superadmin').classList.remove('hidden');
+          
+          document.getElementById('admin-login').classList.replace('flex', 'hidden');
+          document.getElementById('admin-layout').classList.replace('hidden', 'flex');
+          showToast(`Selamat datang, ${currentUser.name}!`, 'success');
+          navAdmin('dash');
+        } else {
+          showToast(res.message || 'Username atau Password salah!', 'error');
+        }
+      } catch (err) { 
+        console.error("Login Handler Error:", err);
+        showToast('Koneksi Error. Pastikan URL GAS benar atau periksa Console.', 'error'); 
+      }
+      showLoading(false);
+    }
+    
+    function logoutAdmin() { location.reload(); }
+
+    const tabTitles = { dash: 'Dasbor Analitik', prod: 'Katalog Produk', trans: 'Pesanan Klien', admin: 'Kelola Admin', config: 'Konfigurasi Toko' };
+    function navAdmin(target) {
+      currentTab = target; document.getElementById('page-title').innerText = tabTitles[target];
+      Object.keys(tabTitles).forEach(v => {
+        const view = document.getElementById(`adm-view-${v}`);
+        const nav = document.getElementById(`nav-adm-${v}`);
+        if(view) view.classList.remove('active');
+        if(nav) { nav.classList.remove('bg-blue-600', 'text-white'); nav.classList.add('text-slate-300', 'hover:bg-slate-800'); }
+      });
+      if(document.getElementById(`adm-view-${target}`)) document.getElementById(`adm-view-${target}`).classList.add('active');
+      const targetNav = document.getElementById(`nav-adm-${target}`);
+      if(targetNav) { targetNav.classList.remove('text-slate-300', 'hover:bg-slate-800'); targetNav.classList.add('bg-blue-600', 'text-white'); }
+      
+      refreshCurrentPage();
+    }
+    
+    function refreshCurrentPage() {
+      if(currentTab === 'dash') { loadDash(); fetchTransData(true); }
+      else if(currentTab === 'prod') fetchProdData();
+      else if(currentTab === 'trans') fetchTransData();
+      else if(currentTab === 'admin') fetchAdmins();
+    }
+
+    async function loadDash() {
+      showLoading(true);
+      try {
+        const res = await api.run('getDashboardStats');
+        const d = res.data || res;
+        document.getElementById('stat-prod').innerText = d.products || 0;
+        document.getElementById('stat-trans').innerText = d.transactions || 0;
+        document.getElementById('stat-rev').innerText = formatRp(d.revenue || 0);
+        
+        const ctx = document.getElementById('dashChart').getContext('2d');
+        if(dashChartInstance) dashChartInstance.destroy();
+        dashChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: ['H-6', 'H-5', 'H-4', 'H-3', 'H-2', 'H-1', 'Hari Ini'],
+            datasets: [{ label: 'Total Transaksi', data: [12, 19, 3, 5, 2, 3, d.transactions || 9], borderColor: '#3B82F6', tension: 0.4, fill:true, backgroundColor: 'rgba(59, 130, 246, 0.1)' }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+      } catch(e){ console.error(e); } showLoading(false);
+    }
+    
+    function renderDashTrans() {
+      const tb = document.getElementById('dash-recent-trans');
+      const start = (dashPage - 1) * 5; const paginated = rawTransData.slice(start, start + 5);
+      tb.innerHTML = '';
+      if(!paginated.length) { tb.innerHTML = '<p class="text-xs text-slate-400">Tidak ada data.</p>'; return; }
+      
+      paginated.forEach(t => {
+        tb.innerHTML += `<div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
+          <div><p class="text-xs font-bold text-slate-800">${t.TxID}</p><p class="text-[10px] text-slate-500">${t.DateStr}</p></div>
+          <div class="text-right"><p class="text-xs font-black text-blue-600">${formatRp(t.Total)}</p><p class="text-[9px] font-bold text-green-600">${t.Status}</p></div>
+        </div>`;
+      });
+      renderPagination('dash-pagination', rawTransData.length, 5, dashPage, (p) => { dashPage = p; renderDashTrans(); });
+    }
+
+    async function fetchProdData() {
+      showLoading(true); try { const res = await api.run('getProducts'); rawProdData = res.data || []; renderTableProd(); } catch(e){ console.error(e); } showLoading(false);
+    }
+    
+    function renderTableProd() {
+      const q = document.getElementById('searchProd').value.toLowerCase();
+      let filtered = rawProdData.filter(p => {
+          const name = String(p.Name || '').toLowerCase();
+          const cat = String(p.Category || '').toLowerCase();
+          return name.includes(q) || cat.includes(q);
+      });
+      
+      const start = (prodPage - 1) * itemsPerPage;
+      const paginated = filtered.slice(start, start + itemsPerPage);
+      
+      const tb = document.getElementById('adm-prod-body'); tb.innerHTML='';
+      if(!paginated.length) tb.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Data kosong.</td></tr>`;
+      
+      paginated.forEach((p, index) => {
+        const globalIndex = start + index + 1;
+        let imgTag = '';
+        if(p.ImageURL && p.ImageURL !== 'Sayur Segar' && p.ImageURL !== 'Buah Segar' && p.ImageURL !== 'Buah & Sayur') {
+             imgTag = `<img src="${p.ImageURL}" class="w-8 h-8 rounded object-cover border border-slate-200" onerror="this.style.display='none'">`;
+        }
+        tb.innerHTML += `<tr>
+          <td class="p-3 text-center text-xs font-bold text-slate-400">${globalIndex}</td>
+          <td class="p-3 text-[11px] text-slate-500 font-bold">${p.CreatedAt || '-'}</td>
+          <td class="p-3">
+            <div class="flex items-center gap-2">
+                ${imgTag}
+                <div>
+                    <div class="font-bold text-slate-800 line-clamp-2">${p.Name}</div>
+                    <span class="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 mt-1 inline-block">${p.Category || '-'}</span>
+                </div>
+            </div>
+          </td>
+          <td class="p-3 font-black text-slate-800 text-xs">${formatRp(p.Price)}</td>
+          <td class="p-3"><span class="font-bold text-slate-600 text-xs">${p.Stock || 0}</span></td>
+          <td class="p-3"><span class="font-bold text-slate-600 text-xs">${p.StockKg || 0} Kg</span></td>
+          <td class="p-3"><span class="font-bold text-slate-600 text-xs">${p.StockDus || 0} Ds</span></td>
+          <td class="p-3 text-right whitespace-nowrap">
+            ${currentUser.role === 'SuperAdmin' ? `
+              <button onclick='editProd(${JSON.stringify(p)})' class="text-blue-500 bg-blue-50 p-1.5 rounded mr-1 hover:bg-blue-500 hover:text-white border border-blue-100"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>
+              <button onclick="cmdDelProd(${p._rowIndex})" class="text-red-500 bg-red-50 p-1.5 rounded hover:bg-red-500 hover:text-white border border-red-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            ` : `<span class="text-[10px] text-slate-400">No Access</span>`}
+          </td>
+        </tr>`;
+      });
+      lucide.createIcons();
+      document.getElementById('prod-info-page').innerText = `Menampilkan ${start+1} - ${Math.min(start+itemsPerPage, filtered.length)} dari ${filtered.length}`;
+      renderPagination('prod-pagination', filtered.length, itemsPerPage, prodPage, (p) => { prodPage = p; renderTableProd(); });
+    }
+    
+    function previewProductImage(event) {
+        const file = event.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 400; 
+                let width = img.width; let height = img.height;
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
+                document.getElementById('p_img_preview').src = dataUrl;
+                document.getElementById('p_img_preview').classList.remove('hidden');
+                document.getElementById('p_img_placeholder').classList.add('hidden');
+                document.getElementById('p_img_base64').value = dataUrl;
+            };
+            img.src = e.target.result;
+        }
+        reader.readAsDataURL(file);
+    }
+    
+    function openModalProd() { 
+        document.getElementById('modalAddProd').classList.remove('hidden'); 
+        setTimeout(()=> {document.getElementById('modalAddProd').classList.remove('opacity-0'); document.getElementById('modalAddProdContent').classList.remove('scale-95');}, 10); 
+        document.getElementById('p_index').value = '-1'; 
+        document.getElementById('modalProdTitle').innerHTML = '<i data-lucide="package-plus" class="w-5 h-5 text-blue-600"></i> Tambah Produk Baru'; 
+        
+        document.getElementById('p_image_file').value = '';
+        document.getElementById('p_img_base64').value = '';
+        document.getElementById('p_img_preview').src = '';
+        document.getElementById('p_img_preview').classList.add('hidden');
+        document.getElementById('p_img_placeholder').classList.remove('hidden');
+        lucide.createIcons(); 
+    }
+    function closeModalProd() { 
+        document.getElementById('modalAddProd').classList.add('opacity-0'); 
+        document.getElementById('modalAddProdContent').classList.add('scale-95'); 
+        setTimeout(()=> document.getElementById('modalAddProd').classList.add('hidden'), 200); 
+    }
+    
+    function editProd(p) {
+      openModalProd();
+      document.getElementById('modalProdTitle').innerHTML = '<i data-lucide="edit" class="w-5 h-5 text-blue-600"></i> Edit Produk'; lucide.createIcons();
+      document.getElementById('p_index').value = p._rowIndex;
+      document.getElementById('p_name').value = p.Name; 
+      
+      const catSelect = document.getElementById('p_cat');
+      let foundCat = false;
+      for (let i = 0; i < catSelect.options.length; i++) { if (catSelect.options[i].value === p.Category) foundCat = true; }
+      if(foundCat) catSelect.value = p.Category; else catSelect.value = 'Lainnya';
+
+      document.getElementById('p_price').value = p.Price; document.getElementById('p_stock').value = p.Stock||0;
+      document.getElementById('p_stockKg').value = p.StockKg||0; document.getElementById('p_stockDus').value = p.StockDus||0;
+      
+      if(p.ImageURL && (p.ImageURL.startsWith('http') || p.ImageURL.startsWith('data:image'))) {
+          document.getElementById('p_img_base64').value = p.ImageURL;
+          document.getElementById('p_img_preview').src = p.ImageURL;
+          document.getElementById('p_img_preview').classList.remove('hidden');
+          document.getElementById('p_img_placeholder').classList.add('hidden');
+      }
+    }
+    async function submitAddProd(e) {
+      e.preventDefault();
+      const payload = { 
+          rowIndex: document.getElementById('p_index').value, 
+          name: document.getElementById('p_name').value, 
+          category: document.getElementById('p_cat').value, 
+          price: document.getElementById('p_price').value, 
+          stock: document.getElementById('p_stock').value, 
+          stockKg: document.getElementById('p_stockKg').value, 
+          stockDus: document.getElementById('p_stockDus').value, 
+          imageURL: document.getElementById('p_img_base64').value
+      };
+      closeModalProd(); showLoading(true);
+      try { await api.run(payload.rowIndex === '-1' ? 'addProduct' : 'updateProduct', payload); showToast('Produk tersimpan', 'success'); fetchProdData(); } catch(e){ console.error(e); }
+      showLoading(false); e.target.reset();
+    }
+    async function cmdDelProd(idx) {
+      if(!confirm("Hapus permanen?")) return; showLoading(true);
+      try { await api.run('deleteProduct', {rowIndex: idx}); showToast('Terhapus', 'success'); fetchProdData(); } catch(e) { console.error(e); }
+      showLoading(false);
+    }
+
+    async function fetchTransData(onlyDash = false) {
+      if(!onlyDash) showLoading(true); try { const res = await api.run('getTransactions'); rawTransData = res.data || []; if(onlyDash) renderDashTrans(); else renderTableTrans(); } catch(e){ console.error(e); } if(!onlyDash) showLoading(false);
+    }
+    function renderTableTrans() {
+      const q = document.getElementById('searchTrans').value.toLowerCase();
+      let filtered = rawTransData.filter(t => t.TxID.toLowerCase().includes(q) || String(t.Customer).toLowerCase().includes(q));
+      const start = (transPage - 1) * itemsPerPage;
+      const paginated = filtered.slice(start, start + itemsPerPage);
+      
+      const tb = document.getElementById('adm-trans-body'); tb.innerHTML='';
+      if(!paginated.length) tb.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Belum ada transaksi.</td></tr>`;
+      
+      paginated.forEach(t => {
+        let items = 'Item Error'; try{ const parsed = JSON.parse(t.Items); items = parsed[0].name; if(parsed.length>1) items += ' ...'; }catch(e){}
+        let selColor = t.Status==='Selesai'?'bg-green-50 text-green-700': t.Status==='Dikirim'?'bg-blue-50 text-blue-700':'bg-yellow-50 text-yellow-700';
+        
+        tb.innerHTML += `<tr>
+          <td class="p-3 text-[11px] text-slate-500 font-bold">${t.DateStr}</td>
+          <td class="p-3 font-black text-slate-800 text-xs">${t.TxID}</td>
+          <td class="p-3"><p class="font-bold text-slate-800 text-xs">${t.Customer}</p><p class="text-[10px] text-slate-500">${items}</p></td>
+          <td class="p-3 text-xs text-slate-600 line-clamp-2">${t.Address || '-'}</td>
+          <td class="p-3 font-black text-blue-600 text-xs">${formatRp(t.Total)}</td>
+          <td class="p-3">
+            <select onchange="updateTxSt(${t._rowIndex}, this.value)" class="w-full text-[11px] font-bold ${selColor} p-1.5 rounded outline-none border border-transparent focus:border-slate-300">
+              <option value="Diproses" ${t.Status==='Diproses'?'selected':''}>⏳ Diproses</option>
+              <option value="Dikirim" ${t.Status==='Dikirim'?'selected':''}>🚚 Dikirim</option>
+              <option value="Selesai" ${t.Status==='Selesai'?'selected':''}>✅ Selesai</option>
+            </select>
+          </td>
+          <td class="p-3 text-right">
+             <button onclick="cmdDelTrans(${t._rowIndex})" class="text-red-500 bg-red-50 p-1.5 rounded hover:bg-red-500 hover:text-white border border-red-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+          </td>
+        </tr>`;
+      });
+      lucide.createIcons();
+      document.getElementById('trans-info-page').innerText = `Menampilkan ${start+1} - ${Math.min(start+itemsPerPage, filtered.length)} dari ${filtered.length}`;
+      renderPagination('trans-pagination', filtered.length, itemsPerPage, transPage, (p) => { transPage = p; renderTableTrans(); });
+    }
+    async function updateTxSt(idx, val) { showLoading(true); try { await api.run('updateTransactionStatus', {rowIndex: idx, status: val}); showToast('Status diperbarui', 'success'); fetchTransData(); } catch(e){ console.error(e); } showLoading(false); }
+    async function cmdDelTrans(idx) { if(!confirm("Hapus Transaksi?")) return; showLoading(true); try { await api.run('deleteTransaction', {rowIndex: idx}); fetchTransData(); } catch(e){ console.error(e); } showLoading(false); }
+
+    // Admin Management Functions
+    async function fetchAdmins() {
+        showLoading(true);
+        try {
+            const res = await api.run('getAdmins');
+            if(res.success) { rawAdminData = res.data; renderTableAdmins(); }
+        } catch (e) { console.error(e); }
+        showLoading(false);
+    }
+    function renderTableAdmins() {
+        const tb = document.getElementById('adminListBody');
+        tb.innerHTML = '';
+        rawAdminData.forEach(adm => {
+            const isSuper = adm.Role === 'SuperAdmin';
+            tb.innerHTML += `<tr>
+                <td class="p-3 font-bold text-slate-800">${adm.Username}</td>
+                <td class="p-3 text-slate-600">${adm.Name}</td>
+                <td class="p-3"><span class="${isSuper ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} text-[10px] px-2 py-1 rounded font-bold uppercase">${adm.Role}</span></td>
+                <td class="p-3 text-right">
+                    ${adm.Username !== currentUser.username ? `<button onclick="cmdDelAdmin(${adm._rowIndex})" class="text-red-500 bg-red-50 p-1.5 rounded hover:bg-red-500 hover:text-white border border-red-100"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>` : `<span class="text-[10px] text-slate-400">Current</span>`}
+                </td>
+            </tr>`;
+        });
+        lucide.createIcons();
+    }
+    async function submitAddAdmin(e) {
+        e.preventDefault();
+        const payload = { username: document.getElementById('newAdmUser').value, password: document.getElementById('newAdmPass').value, name: document.getElementById('newAdmName').value, role: document.getElementById('newAdmRole').value };
+        showLoading(true);
+        try {
+            const res = await api.run('addAdmin', payload);
+            if(res.success) { showToast('Admin ditambahkan', 'success'); e.target.reset(); fetchAdmins(); }
+            else showToast(res.message, 'error');
+        } catch (e) { console.error(e); }
+        showLoading(false);
+    }
+    async function cmdDelAdmin(idx) {
+        if(!confirm("Hapus admin ini?")) return; showLoading(true);
+        try { await api.run('deleteAdmin', {rowIndex: idx}); showToast('Admin dihapus', 'success'); fetchAdmins(); } catch(e) { console.error(e); }
+        showLoading(false);
+    }
+    function saveConfig() { showToast('Konfigurasi disimpan (Dummy Frontend)', 'success'); }
+
+    function renderPagination(containerId, totalItems, perPage, currentPage, callback) {
+      const totalPages = Math.ceil(totalItems / perPage);
+      const cont = document.getElementById(containerId); cont.innerHTML = '';
+      if(totalPages <= 1) return;
+      
+      const btnClass = "w-6 h-6 flex items-center justify-center rounded text-xs font-bold border transition-colors";
+      cont.innerHTML += `<button class="${btnClass} ${currentPage===1?'text-slate-300 border-slate-200':'text-slate-600 border-slate-300 hover:bg-slate-100'}" ${currentPage===1?'disabled':''} onclick="(${callback})(${currentPage-1})"><i data-lucide="chevron-left" class="w-3 h-3"></i></button>`;
+      cont.innerHTML += `<div class="px-2 text-xs font-bold text-slate-600 flex items-center">${currentPage} / ${totalPages}</div>`;
+      cont.innerHTML += `<button class="${btnClass} ${currentPage===totalPages?'text-slate-300 border-slate-200':'text-slate-600 border-slate-300 hover:bg-slate-100'}" ${currentPage===totalPages?'disabled':''} onclick="(${callback})(${currentPage+1})"><i data-lucide="chevron-right" class="w-3 h-3"></i></button>`;
+      lucide.createIcons();
+    }
+
+    function exportExcel(type) {
+      try {
+        const dataToExport = (type === 'Products' ? rawProdData : rawTransData).map(row => { const cleanRow = {...row}; delete cleanRow._rowIndex; return cleanRow; });
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, type);
+        XLSX.writeFile(wb, `Export_${type}_${new Date().getTime()}.xlsx`);
+        showToast('Berhasil Ekspor Excel', 'success');
+      } catch(e) { showToast('Gagal Ekspor', 'error'); }
+    }
+    function exportPDF(type) {
+      try {
+        const doc = new jspdf.jsPDF(type === 'Transactions' ? 'landscape' : 'portrait');
+        doc.text(`Laporan ${type}`, 14, 10);
+        let bodyData = []; let headers = [];
+        if(type === 'Products') {
+          headers = [['ID', 'Nama', 'Kategori', 'Harga', 'Pcs', 'Kg', 'Dus']];
+          bodyData = rawProdData.map(p => [p.ID, p.Name, p.Category, p.Price, p.Stock||0, p.StockKg||0, p.StockDus||0]);
+        } else {
+          headers = [['Tanggal', 'ID', 'Pelanggan', 'Alamat', 'Total', 'Status']];
+          bodyData = rawTransData.map(t => [t.DateStr, t.TxID, t.Customer, t.Address || '-', t.Total, t.Status]);
+        }
+        doc.autoTable({ head: headers, body: bodyData, startY: 20, theme: 'grid', styles: {fontSize: 8} });
+        doc.save(`Export_${type}_${new Date().getTime()}.pdf`);
+        showToast('Berhasil Ekspor PDF', 'success');
+      } catch(e) { showToast('Gagal Ekspor PDF', 'error'); }
+    }
+
+  </script>
+</body>
+</html>
